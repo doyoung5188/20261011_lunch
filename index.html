@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구암중 오늘의 급식</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap">
+<style>
+/* 레이아웃: 상단 날짜 선택 바 → 끼니별 식판 카드 → 영양·원산지 접이식 → 알레르기 안내 */
+:root{
+  --bg:#eef1f3; --tray:#fbfcfc; --fg:#22292e; --muted:#66727b; --line:#d6dde2;
+  --accent:#e2702b; --accent-soft:#fbe5d6; --chip:#e7ecef; --warn:#c23a3a; --warn-soft:#f9dede;
+  --f-display:"Do Hyeon","Gowun Dodum",system-ui,sans-serif;
+  --f-body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14191c; --tray:#1d2428; --fg:#e6ecef; --muted:#97a3ab; --line:#2f393f;
+  --accent:#f39556; --accent-soft:#3d2719; --chip:#29333a; --warn:#f07d7d; --warn-soft:#432325; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14191c; --tray:#1d2428; --fg:#e6ecef; --muted:#97a3ab; --line:#2f393f;
+  --accent:#f39556; --accent-soft:#3d2719; --chip:#29333a; --warn:#f07d7d; --warn-soft:#432325; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:24px 56px;display:flex;flex-direction:column;gap:18px}
+header h1{font-family:var(--f-display);font-weight:400;font-size:2.1rem;margin:0;line-height:1.1}
+header h1 span{color:var(--accent)}
+header p{margin:4px 0 0;color:var(--muted);font-size:.92rem}
+
+.picker{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--tray);border:1px solid var(--line);border-radius:14px;padding:10px}
+.picker input[type=date]{flex:1 1 170px;min-width:0;font:inherit;font-size:1.05rem;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+.btn{font:inherit;border:1px solid var(--line);background:var(--tray);color:var(--fg);border-radius:10px;padding:9px 13px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.icon{width:42px;padding:9px 0;font-size:1.1rem}
+.btn.today{background:var(--accent);border-color:var(--accent);color:#fff;font-family:var(--f-display);font-size:1.05rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.dayline{font-family:var(--f-display);font-size:1.45rem;margin:0}
+.dayline small{font-family:var(--f-body);font-size:.9rem;color:var(--muted);margin-left:6px}
+
+.meals{display:flex;flex-direction:column;gap:16px}
+.meal{background:var(--tray);border:1px solid var(--line);border-radius:18px;padding:18px 18px 14px;display:flex;flex-direction:column;gap:12px}
+.meal-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.meal-head h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.5rem}
+.kcal{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;background:var(--accent-soft);padding:3px 10px;border-radius:999px;font-size:.9rem}
+.dishes{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.dish{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.dish .name{font-size:1.08rem;word-break:keep-all}
+.dish.hit{border-color:var(--warn);background:var(--warn-soft)}
+.dish.hit .name::after{content:" ⚠";color:var(--warn)}
+.algs{display:flex;flex-wrap:wrap;gap:4px}
+.alg{font-size:.72rem;background:var(--chip);color:var(--muted);border-radius:6px;padding:1px 6px;cursor:help}
+.alg.hit{background:var(--warn);color:#fff}
+.meta{display:flex;flex-direction:column;gap:6px}
+details{border-top:1px dashed var(--line);padding-top:6px}
+summary{cursor:pointer;color:var(--muted);font-size:.9rem;padding:4px 0}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 16px;margin:6px 0 4px;font-size:.88rem}
+.kv div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:3px 0;min-width:0}
+.kv b{font-weight:400;color:var(--muted)}
+.kv span{font-variant-numeric:tabular-nums;text-align:right}
+
+.state{background:var(--tray);border:1px dashed var(--line);border-radius:18px;padding:34px 18px;text-align:center;color:var(--muted)}
+.state strong{display:block;font-family:var(--f-display);font-weight:400;font-size:1.4rem;color:var(--fg);margin-bottom:4px}
+.state.err strong{color:var(--warn)}
+.spinner{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 10px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.allergy{background:var(--tray);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.allergy h3{margin:0 0 4px;font-family:var(--f-display);font-weight:400;font-size:1.15rem}
+.allergy p{margin:0 0 8px;color:var(--muted);font-size:.85rem}
+.alist{display:flex;flex-wrap:wrap;gap:6px}
+.alist label{display:inline-flex;align-items:center;gap:4px;font-size:.85rem;border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer}
+.alist input{accent-color:var(--warn)}
+.alist label:has(input:checked){border-color:var(--warn);color:var(--warn)}
+footer{color:var(--muted);font-size:.8rem;text-align:center}
+@media (prefers-reduced-motion: reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>구암중 <span>급식</span></h1>
+    <p>서울 구암중학교 · 날짜를 고르면 그날의 식단을 보여드려요</p>
+  </header>
+
+  <div class="picker">
+    <button class="btn icon" id="prev" type="button" aria-label="전날">‹</button>
+    <input type="date" id="date" aria-label="날짜 선택">
+    <button class="btn icon" id="next" type="button" aria-label="다음날">›</button>
+    <button class="btn today" id="today" type="button">오늘</button>
+  </div>
+
+  <h2 class="dayline" id="dayline"></h2>
+  <section class="meals" id="meals" aria-live="polite"></section>
+
+  <section class="allergy">
+    <h3>내 알레르기 표시</h3>
+    <p>체크하면 해당 재료가 든 메뉴에 ⚠ 표시가 붙어요. 이 브라우저에 저장돼요.</p>
+    <div class="alist" id="alist"></div>
+  </section>
+
+  <footer>자료: 나이스 교육정보 개방 포털 (open.neis.go.kr)</footer>
+</div>
+
+<script>
+const API = 'https://open.neis.go.kr/hub/mealServiceDietInfo';
+const ATPT = 'B10';        // 서울특별시교육청
+const SCHOOL = '7132127';  // 구암중학교
+
+const ALLERGENS = {1:'난류',2:'우유',3:'메밀',4:'땅콩',5:'대두',6:'밀',7:'고등어',8:'게',9:'새우',10:'돼지고기',
+  11:'복숭아',12:'토마토',13:'아황산류',14:'호두',15:'닭고기',16:'쇠고기',17:'오징어',18:'조개류',19:'잣'};
+const DAYS = ['일','월','화','수','목','금','토'];
+const MEAL_ORDER = {'조식':1,'중식':2,'석식':3};
+
+const $ = id => document.getElementById(id);
+let myAlg = new Set();
+try{ myAlg = new Set(JSON.parse(localStorage.getItem('guam-alg')||'[]')); }catch(e){}
+
+/* ---------- 날짜 도우미 ---------- */
+function toInput(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fromInput(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function toYMD(d){ return toInput(d).replace(/-/g,''); }
+
+/* ---------- XML 파싱 ---------- */
+function text(el, tag){ const n = el.getElementsByTagName(tag)[0]; return n ? n.textContent.trim() : ''; }
+function splitBr(s){ return s.split(/<br\s*\/?>/i).map(x=>x.trim()).filter(Boolean); }
+
+function parseMeals(xmlText){
+  const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('XML 형식을 읽지 못했어요.');
+
+  const code = text(doc, 'CODE');
+  if (code === 'INFO-200') return [];                 // 해당 데이터 없음
+  if (code && code !== 'INFO-000') throw new Error(text(doc,'MESSAGE') || code);
+
+  return Array.from(doc.getElementsByTagName('row')).map(row => ({
+    type: text(row,'MMEAL_SC_NM'),
+    people: text(row,'MLSV_FGR'),
+    kcal: text(row,'CAL_INFO'),
+    dishes: splitBr(text(row,'DDISH_NM')).map(parseDish),
+    nutrition: splitBr(text(row,'NTR_INFO')).map(kv),
+    origin: splitBr(text(row,'ORPLC_INFO')).map(kv).filter(x=>x.v && x.k!=='비고'),
+  })).sort((a,b)=>(MEAL_ORDER[a.type]||9)-(MEAL_ORDER[b.type]||9));
+}
+function parseDish(raw){
+  // 예: "하이라이스 (1.2.5.6.12.13.16)"
+  const m = raw.match(/\(([\d.\s]+)\)\s*$/);
+  const algs = m ? m[1].split('.').map(s=>parseInt(s,10)).filter(n=>ALLERGENS[n]) : [];
+  const name = (m ? raw.slice(0, m.index) : raw).trim();
+  return {name, algs};
+}
+function kv(s){ const i=s.indexOf(':'); return i<0 ? {k:s,v:''} : {k:s.slice(0,i).trim(), v:s.slice(i+1).trim()}; }
+
+/* ---------- 화면 ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function showState(kind, title, msg){
+  $('meals').innerHTML = `<div class="state ${kind}">${kind==='loading'?'<div class="spinner"></div>':''}<strong>${esc(title)}</strong>${esc(msg||'')}</div>`;
+}
+
+function renderMeals(meals){
+  if (!meals.length){
+    const d = fromInput($('date').value), wd = d.getDay();
+    showState('', wd===0||wd===6 ? '주말이에요' : '급식 정보가 없어요',
+      wd===0||wd===6 ? '주말에는 급식이 없어요. 다른 날짜를 골라 보세요.' : '방학, 공휴일, 재량휴업일이거나 아직 식단이 등록되지 않았을 수 있어요.');
+    return;
+  }
+  $('meals').innerHTML = meals.map(m => `
+    <article class="meal">
+      <div class="meal-head"><h2>${esc(m.type||'급식')}</h2>${m.kcal?`<span class="kcal">${esc(m.kcal)}</span>`:''}</div>
+      <ul class="dishes">${m.dishes.map(d=>{
+        const hit = d.algs.some(n=>myAlg.has(n));
+        return `<li class="dish${hit?' hit':''}"><span class="name">${esc(d.name)}</span>${d.algs.length?`<span class="algs">${
+          d.algs.map(n=>`<span class="alg${myAlg.has(n)?' hit':''}" title="${ALLERGENS[n]}">${n} ${ALLERGENS[n]}</span>`).join('')}</span>`:''}</li>`;
+      }).join('')}</ul>
+      <div class="meta">
+        ${m.nutrition.length?`<details><summary>영양 정보</summary><div class="kv">${m.nutrition.map(x=>`<div><b>${esc(x.k)}</b><span>${esc(x.v)}</span></div>`).join('')}</div></details>`:''}
+        ${m.origin.length?`<details><summary>원산지 정보</summary><div class="kv">${m.origin.map(x=>`<div><b>${esc(x.k)}</b><span>${esc(x.v)}</span></div>`).join('')}</div></details>`:''}
+      </div>
+    </article>`).join('');
+}
+
+let lastMeals = [], reqId = 0;
+async function load(){
+  const d = fromInput($('date').value);
+  $('dayline').innerHTML = `${d.getMonth()+1}월 ${d.getDate()}일 (${DAYS[d.getDay()]})<small>${d.getFullYear()}년</small>`;
+  const id = ++reqId;
+  showState('loading', '급식 정보를 불러오는 중…');
+  const url = `${API}?Type=xml&ATPT_OFCDC_SC_CODE=${ATPT}&SD_SCHUL_CODE=${SCHOOL}&MLSV_YMD=${toYMD(d)}`;
+  try{
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`서버 응답 오류 (${res.status})`);
+    const meals = parseMeals(await res.text());
+    if (id !== reqId) return;           // 더 최근 요청이 있으면 무시
+    lastMeals = meals; renderMeals(meals);
+  }catch(e){
+    if (id !== reqId) return;
+    const why = (e instanceof TypeError)
+      ? '브라우저가 나이스 서버 접속을 막았어요(CORS 또는 보안 정책). F12 → Console 탭의 빨간 오류를 확인해 주세요.'
+      : e.message;
+    showState('err', '불러오지 못했어요', why);
+    $('meals').firstElementChild.insertAdjacentHTML('beforeend',
+      `<p style="margin:10px 0 0"><a href="${url}" target="_blank" rel="noopener" style="color:var(--accent)">원본 XML 직접 열어 보기 ↗</a></p>`);
+  }
+}
+
+function setDate(d){ $('date').value = toInput(d); load(); }
+function shift(n){ const d = fromInput($('date').value); d.setDate(d.getDate()+n); setDate(d); }
+
+$('date').addEventListener('change', ()=>{ if($('date').value) load(); });
+$('prev').onclick = ()=>shift(-1);
+$('next').onclick = ()=>shift(1);
+$('today').onclick = ()=>setDate(new Date());
+document.addEventListener('keydown', e=>{
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='ArrowLeft') shift(-1);
+  if (e.key==='ArrowRight') shift(1);
+});
+
+/* 알레르기 선택 */
+$('alist').innerHTML = Object.entries(ALLERGENS).map(([n,name]) =>
+  `<label><input type="checkbox" id="alg-${n}" value="${n}" ${myAlg.has(+n)?'checked':''}> ${n}. ${name}</label>`).join('');
+$('alist').addEventListener('change', e=>{
+  const n = +e.target.value; e.target.checked ? myAlg.add(n) : myAlg.delete(n);
+  try{ localStorage.setItem('guam-alg', JSON.stringify([...myAlg])); }catch(_){}
+  if (lastMeals.length) renderMeals(lastMeals);
+});
+
+setDate(new Date());
+</script>
+</body>
+</html>
